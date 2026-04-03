@@ -1,13 +1,12 @@
 # Bybit Futures Trading Alert Bot
 
 A Telegram-based alert bot for Bybit USDT perpetual futures.
-Monitors BTC, ETH, and SOL for candle closes, volume spikes, breakout attempts, and sends scheduled market summaries.
 
 ## Features
 
-- **Candle alerts** — 1H / 4H close notifications with price data
-- **Scanner** — Detects volume spikes and previous high/low breakout attempts on 15m / 30m candles
-- **Market summary** — Auto-sent 5 times daily via Telegram
+- **Candle alerts** — 4H close notifications for BTC, ETH, SOL (batched into one message)
+- **Volume spike scanner** — Monitors BTC 5m candles; alerts when volume exceeds 2× average AND 2,000 BTC absolute threshold
+- **Market summary** — Auto-sent 5× daily (KST: 3am / 6am / 9am / 6pm / 11pm); 9am and 6pm include Fear & Greed Index and BTC dominance
 
 ## Setup
 

@@ -74,25 +74,23 @@ async function main(): Promise<void> {
 
   await sendMessage('트레이딩 봇이 시작되었습니다. ✅\n감시 심볼: ' + config.scanner.symbols.join(', '));
 
-  // 거래량 급등 + 돌파 시도 통합 스캔 (15분 / 30분 캔들 마감마다)
-  scheduleScan(15);
-  scheduleScan(30);
+  // BTC 거래량 급등 스캔 (5분 캔들 마감마다)
+  scheduleScan(5);
 
-  // 캔들 마감 알림 (1H: 데이터만 / 4H: 데이터 + AI 코멘트)
-  scheduleCandleCheck(60);
+  // 캔들 마감 알림 (4H)
   scheduleCandleCheck(240);
 
   // 시장 요약 — 하루 5회 (KST 기준)
-  const SUMMARY_TIMES: Array<{ h: number; m: number; label: string }> = [
+  const SUMMARY_TIMES: Array<{ h: number; m: number; label: string; macro?: boolean }> = [
     { h:  6, m: 0, label: '오전 6시'  },
-    { h:  9, m: 0, label: '오전 9시'  },
-    { h: 18, m: 0, label: '오후 6시'  },
+    { h:  9, m: 0, label: '오전 9시',  macro: true }, // 매크로 블록 포함
+    { h: 18, m: 0, label: '오후 6시',  macro: true }, // 매크로 블록 포함
     { h: 23, m: 0, label: '오후 11시' },
     { h:  3, m: 0, label: '오전 3시'  },
   ];
 
-  for (const { h, m, label } of SUMMARY_TIMES) {
-    scheduleDailyAt(h, m, () => sendDailySummary(label), `시장 요약 (${label})`);
+  for (const { h, m, label, macro } of SUMMARY_TIMES) {
+    scheduleDailyAt(h, m, () => sendDailySummary(label, macro), `시장 요약 (${label})`);
   }
 
   console.log('[Bot] 스케줄러 등록 완료. 대기 중...');

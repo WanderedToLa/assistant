@@ -1,5 +1,6 @@
 import { fetchTicker, Ticker } from '../fetcher';
 import { sendMessage } from './telegram';
+import { buildMacroBlock } from './macro';
 import { config } from '../config';
 
 /** 구분선 (텔레그램 고정폭 폰트용) */
@@ -46,8 +47,11 @@ function buildTickerBlock(ticker: Ticker): string {
   ].join('\n');
 }
 
-/** 모든 감시 심볼의 티커를 가져와 시장 요약 메시지를 전송한다 */
-export async function sendDailySummary(timeLabel: string = ''): Promise<void> {
+/**
+ * 모든 감시 심볼의 티커를 가져와 시장 요약 메시지를 전송한다
+ * @param includeMacro true이면 공포탐욕지수/BTC 도미넌스/경제지표 블록을 추가한다
+ */
+export async function sendDailySummary(timeLabel: string = '', includeMacro: boolean = false): Promise<void> {
   const now = new Date();
 
   // 날짜 표시 (KST)
@@ -71,15 +75,25 @@ export async function sendDailySummary(timeLabel: string = ''): Promise<void> {
     }
   }
 
-  const msg = [
+  const parts: string[] = [
     `📊 <b>시장 요약</b>${headerLabel}`,
     `<i>${dateStr}</i>`,
     '',
     DIVIDER,
     blocks.join(`\n${DIVIDER}\n`),
     DIVIDER,
-  ].join('\n');
+  ];
 
-  await sendMessage(msg);
+  // 오후 6시 요약에만 매크로 블록(공포탐욕/도미넌스/경제지표) 추가
+  if (includeMacro) {
+    try {
+      const macroBlock = await buildMacroBlock();
+      parts.push('', `🌍 <b>매크로</b>`, macroBlock, DIVIDER);
+    } catch (err) {
+      console.error('[Summary] 매크로 블록 생성 실패:', err);
+    }
+  }
+
+  await sendMessage(parts.join('\n'));
   console.log(`[Summary] 전송 완료 (${timeLabel || '수동'})`);
 }
