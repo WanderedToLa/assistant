@@ -25,7 +25,7 @@ export const config = {
   anthropic: {
     apiKey: requireEnv('ANTHROPIC_API_KEY'),
     // 비용 효율을 위해 Haiku 사용 (짧은 코멘트 생성에 충분)
-    model: 'claude-haiku-4-5' as const,
+    model: 'claude-haiku-4-5-20251001' as const,
   },
   scanner: {
     // 거래량 급등 감시 대상 심볼
@@ -34,8 +34,8 @@ export const config = {
     volumeSymbols: ['BTCUSDT'],
     // 평균 대비 몇 배 이상이면 거래량 급등으로 판단
     volumeSpikeThreshold: 2.0,
-    // 절대 거래량 최소값 (코인 기준) — 이 미만이면 배율이 높아도 급등으로 보지 않음
-    minVolumeCoins: 2000,
+    // 베이스라인 평균 거래량 최소값 — 평균 자체가 이 미만이면 (시장 비활성) 스킵
+    minAvgVolumeCoins: 300,
     // 전고점/전저점과 몇 % 이내에 들어오면 돌파 시도로 판단
     breakoutProximityPct: 0.5,
     // 5분 캔들 체크 주기 (ms)

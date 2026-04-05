@@ -62,7 +62,7 @@ export async function checkCandleCloseAll(intervalMin: number): Promise<void> {
     `🕐 ${new Date().toLocaleTimeString('ko-KR')}`,
   ].join('\n');
 
-  // TODO: 크레딧 충전 후 4H 캔들에 AI 코멘트 재활성화 (generateCandleComment)
+  // AI 코멘트는 트랙 C 시장 요약(summary.ts)에서 통합 생성
 
   await sendMessage(msg);
 }

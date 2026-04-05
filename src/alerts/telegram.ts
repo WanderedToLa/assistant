@@ -13,12 +13,3 @@ export async function sendMessage(message: string): Promise<void> {
   }
 }
 
-/** 심볼/타입/세부내용을 포함한 구조화된 알림을 전송한다 */
-export async function sendAlert(symbol: string, type: string, detail: string): Promise<void> {
-  const msg = `
-<b>[${type}] ${symbol}</b>
-${detail}
-🕐 ${new Date().toLocaleTimeString('ko-KR')}
-  `.trim();
-  await sendMessage(msg);
-}

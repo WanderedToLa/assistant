@@ -1,46 +1,35 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from './config';
+import type { Ticker } from './fetcher';
 
 /** Claude 클라이언트 (싱글톤) */
 const client = new Anthropic({ apiKey: config.anthropic.apiKey });
 
-/** AI 코멘트 생성에 필요한 캔들 컨텍스트 */
-export interface CandleContext {
-  symbol: string;    // 예: 'BTCUSDT'
-  interval: string;  // 예: '4H'
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  changeRate: number;    // 등락률 (%)
-  volumeRatio: number;   // 평균 대비 거래량 배율
+/** 시장 요약 AI 코멘트 생성에 필요한 컨텍스트 */
+export interface SummaryContext {
+  tickers: Ticker[];   // 감시 심볼들의 티커 데이터
+  timeLabel: string;   // 예: '오전 9시', '오후 6시'
 }
 
-/** 4H 캔들 마감 데이터를 기반으로 Claude AI 코멘트를 생성한다 */
-export async function generateCandleComment(ctx: CandleContext): Promise<string> {
-  const name = ctx.symbol.replace('USDT', '');
-  const direction = ctx.changeRate >= 0 ? '양봉' : '음봉';
-  const sign = ctx.changeRate >= 0 ? '+' : '';
-
-  // 캔들 형태 분석을 위한 윗꼬리 / 아래꼬리 계산
-  const bodyTop    = Math.max(ctx.open, ctx.close);
-  const bodyBottom = Math.min(ctx.open, ctx.close);
-  const upperWick  = ctx.high - bodyTop;
-  const lowerWick  = bodyBottom - ctx.low;
-  const bodySize   = Math.abs(ctx.close - ctx.open);
+/** 시장 요약 데이터를 기반으로 Claude AI 시황 코멘트를 생성한다 */
+export async function generateSummaryComment(ctx: SummaryContext): Promise<string> {
+  // 각 심볼의 핵심 지표를 한 줄로 정리
+  const lines = ctx.tickers.map(t => {
+    const name    = t.symbol.replace('USDT', '');
+    const pct     = (t.price24hPcnt * 100).toFixed(2);
+    const sign    = t.price24hPcnt >= 0 ? '+' : '';
+    const funding = (t.fundingRate * 100).toFixed(4);
+    const fSign   = t.fundingRate >= 0 ? '+' : '';
+    return `${name}: $${t.lastPrice.toLocaleString()} (${sign}${pct}%), 펀딩 ${fSign}${funding}%`;
+  });
 
   const prompt = [
-    `${name} ${ctx.interval} 캔들이 방금 마감했습니다.`,
+    `${ctx.timeLabel} 코인 선물 시장 현황입니다.`,
     ``,
-    `[캔들 데이터]`,
-    `- 시가: ${ctx.open.toLocaleString()} / 종가: ${ctx.close.toLocaleString()}`,
-    `- 고가: ${ctx.high.toLocaleString()} / 저가: ${ctx.low.toLocaleString()}`,
-    `- 등락: ${sign}${ctx.changeRate.toFixed(2)}% (${direction})`,
-    `- 몸통: ${bodySize.toFixed(2)} / 윗꼬리: ${upperWick.toFixed(2)} / 아래꼬리: ${lowerWick.toFixed(2)}`,
-    `- 거래량: 평균 대비 ${ctx.volumeRatio.toFixed(1)}배`,
+    ...lines,
     ``,
-    `트레이더 관점에서 2~3줄의 핵심 코멘트를 한국어로 작성하세요.`,
-    `캔들 형태, 거래량 특이사항, 단기 방향성 힌트를 간결하게만 언급하세요.`,
+    `트레이더 관점에서 2~3줄의 핵심 시황 코멘트를 한국어로 작성하세요.`,
+    `전체 시장 분위기, 주목할 만한 움직임, 단기 방향성 힌트를 간결하게 언급하세요.`,
     `불필요한 서론 없이 바로 본론만 작성하세요.`,
   ].join('\n');
 
@@ -50,7 +39,6 @@ export async function generateCandleComment(ctx: CandleContext): Promise<string>
     messages: [{ role: 'user', content: prompt }],
   });
 
-  // 텍스트 블록만 추출
   const textBlock = response.content.find(b => b.type === 'text');
   return textBlock?.text.trim() ?? '코멘트를 생성하지 못했습니다.';
 }

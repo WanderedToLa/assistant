@@ -1,6 +1,7 @@
 import { fetchTicker, Ticker } from '../fetcher';
 import { sendMessage } from './telegram';
 import { buildMacroBlock } from './macro';
+import { generateSummaryComment } from '../ai';
 import { config } from '../config';
 
 /** 구분선 (텔레그램 고정폭 폰트용) */
@@ -64,14 +65,27 @@ export async function sendDailySummary(timeLabel: string = '', includeMacro: boo
   console.log(`[Summary] 시장 요약 생성 중... (${timeLabel || '수동'})`);
 
   const blocks: string[] = [];
+  const tickers: Ticker[] = []; // AI 코멘트 생성에 사용할 티커 목록
 
   for (const symbol of config.scanner.symbols) {
     try {
       const ticker = await fetchTicker(symbol);
+      tickers.push(ticker);
       blocks.push(buildTickerBlock(ticker));
     } catch (err) {
       console.error(`[Summary] ${symbol} 티커 조회 실패:`, err);
       blocks.push(`⚠️ ${symbol} 데이터 조회 실패`);
+    }
+  }
+
+  // AI 시황 코멘트 생성 (티커가 하나라도 있을 때만)
+  let aiComment = '';
+  if (tickers.length > 0) {
+    try {
+      aiComment = await generateSummaryComment({ tickers, timeLabel: timeLabel || '현재' });
+      console.log('[Summary] AI 코멘트 생성 완료');
+    } catch (err) {
+      console.error('[Summary] AI 코멘트 생성 실패:', err);
     }
   }
 
@@ -83,6 +97,11 @@ export async function sendDailySummary(timeLabel: string = '', includeMacro: boo
     blocks.join(`\n${DIVIDER}\n`),
     DIVIDER,
   ];
+
+  // AI 코멘트가 있으면 구분선 아래에 추가
+  if (aiComment) {
+    parts.push('', `🤖 <b>AI 시황</b>`, aiComment);
+  }
 
   // 오후 6시 요약에만 매크로 블록(공포탐욕/도미넌스/경제지표) 추가
   if (includeMacro) {
