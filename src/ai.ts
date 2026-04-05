@@ -23,15 +23,24 @@ export async function generateSummaryComment(ctx: SummaryContext): Promise<strin
     return `${name}: $${t.lastPrice.toLocaleString()} (${sign}${pct}%), 펀딩 ${fSign}${funding}%`;
   });
 
-  const prompt = [
-    `${ctx.timeLabel} 코인 선물 시장 현황입니다.`,
-    ``,
-    ...lines,
-    ``,
-    `트레이더 관점에서 2~3줄의 핵심 시황 코멘트를 한국어로 작성하세요.`,
-    `전체 시장 분위기, 주목할 만한 움직임, 단기 방향성 힌트를 간결하게 언급하세요.`,
-    `불필요한 서론 없이 바로 본론만 작성하세요.`,
-  ].join('\n');
+const prompt = [
+  `당신은 코인 선물 트레이더의 매매 보조 AI입니다.`,
+  `${ctx.timeLabel} 시장 데이터를 분석하고`,
+  `트레이더가 지금 당장 판단해야 할 핵심만 요약하세요.`,
+  ``,
+  ...lines,
+  ``,
+  `아래 형식을 정확히 따르세요:`,
+  `① 시장 구조: (추세 지속 or 전환 가능성 한 줄)`,
+  `② 핵심 구간: BTC $X 지지 / $X 저항`,
+  `③ 행동 지침: 관망 / 롱 대기 / 숏 대기 + 이유 한 줄`,
+  ``,
+  `주의사항:`,
+  `- 마크다운 사용 금지 (**, ##, 테이블 전부 금지)`,
+  `- 이모지 사용 금지`,
+  `- 3줄 초과 금지`,
+  `- 근거 없는 전망 금지`,
+].join('\n');
 
   const response = await client.messages.create({
     model: config.anthropic.model,

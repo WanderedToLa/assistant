@@ -36,7 +36,7 @@ async function scanVolumeSpike(symbol: string, interval: string): Promise<string
   console.log(`[Scanner] 거래량 급등 → ${symbol} | ${target.volume.toLocaleString()} BTC (${volumeRatio.toFixed(1)}배)`);
   return [
     `<b>${name}</b>  [거래량 급등]  ${dirArrow} ${sign}${changeRate.toFixed(2)}%`,
-    `  마감가 $${target.close.toLocaleString()}`,
+    `  마감가 ${target.close.toLocaleString()}`,
     `  거래량 <b>${target.volume.toLocaleString()} BTC</b>  (평균 대비 ${volumeRatio.toFixed(1)}배)`,
   ].join('\n');
 }

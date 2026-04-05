@@ -31,7 +31,7 @@ async function processCandleClose(symbol: string, intervalMin: number): Promise<
   // 심볼 한 줄 요약: 이름 / 마감가 / 등락률 / 거래량 배율
   return (
     `<b>${name}</b>  ${dirArrow} ${sign}${changeRate.toFixed(2)}%\n` +
-    `  마감가 $${closed.close.toLocaleString()}  ·  거래량 ${volumeRatio.toFixed(1)}배`
+    `  마감가 ${closed.close.toLocaleString()}  ·  거래량 ${volumeRatio.toFixed(1)}배`
   );
 }
 
