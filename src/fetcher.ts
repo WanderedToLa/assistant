@@ -3,6 +3,33 @@ import axios from 'axios';
 /** 바이비트 퍼블릭 API 베이스 URL */
 const BYBIT_API_BASE = 'https://api.bybit.com';
 
+/** 지정한 ms만큼 대기한다 */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * API 호출을 최대 maxRetries번 재시도한다
+ * - 레이트 리밋 등 일시적 오류에 대응
+ * - 재시도 간격: 2초 → 4초 → 6초 (선형 증가)
+ */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries: number = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const waitMs = attempt * 2000; // 2s, 4s, 6s
+        console.warn(`[Fetcher] 재시도 ${attempt}/${maxRetries - 1} — ${waitMs / 1000}초 후 재시도`);
+        await sleep(waitMs);
+      }
+    }
+  }
+  throw lastError;
+}
+
 /** 바이비트 캔들(Kline) 데이터 구조 */
 export interface Candle {
   openTime: number; // 캔들 시작 시각 (Unix ms)
@@ -37,17 +64,19 @@ export async function fetchCandles(
   interval: string,
   limit: number = 21
 ): Promise<Candle[]> {
-  const url = `${BYBIT_API_BASE}/v5/market/kline`;
-  const res = await axios.get(url, {
-    params: { category: 'linear', symbol, interval, limit },
+  return withRetry(async () => {
+    const url = `${BYBIT_API_BASE}/v5/market/kline`;
+    const res = await axios.get(url, {
+      params: { category: 'linear', symbol, interval, limit },
+    });
+
+    if (res.data.retCode !== 0) {
+      throw new Error(`[Fetcher] 캔들 조회 실패 (${symbol}): ${res.data.retMsg}`);
+    }
+
+    // 바이비트는 최신이 index 0인 배열로 반환
+    return (res.data.result.list as string[][]).map(parseCandle);
   });
-
-  if (res.data.retCode !== 0) {
-    throw new Error(`[Fetcher] 캔들 조회 실패 (${symbol}): ${res.data.retMsg}`);
-  }
-
-  // 바이비트는 최신이 index 0인 배열로 반환
-  return (res.data.result.list as string[][]).map(parseCandle);
 }
 
 /** 바이비트 선물 티커 데이터 구조 */
@@ -80,14 +109,16 @@ function parseTicker(raw: Record<string, string>): Ticker {
 
 /** 바이비트 선물 티커(현재가/거래량 등)를 가져온다 */
 export async function fetchTicker(symbol: string): Promise<Ticker> {
-  const url = `${BYBIT_API_BASE}/v5/market/tickers`;
-  const res = await axios.get(url, {
-    params: { category: 'linear', symbol },
+  return withRetry(async () => {
+    const url = `${BYBIT_API_BASE}/v5/market/tickers`;
+    const res = await axios.get(url, {
+      params: { category: 'linear', symbol },
+    });
+
+    if (res.data.retCode !== 0) {
+      throw new Error(`[Fetcher] 티커 조회 실패 (${symbol}): ${res.data.retMsg}`);
+    }
+
+    return parseTicker(res.data.result.list[0] as Record<string, string>);
   });
-
-  if (res.data.retCode !== 0) {
-    throw new Error(`[Fetcher] 티커 조회 실패 (${symbol}): ${res.data.retMsg}`);
-  }
-
-  return parseTicker(res.data.result.list[0] as Record<string, string>);
 }
