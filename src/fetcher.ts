@@ -107,6 +107,74 @@ function parseTicker(raw: Record<string, string>): Ticker {
   };
 }
 
+/** 바이비트 미결제약정(OI) 데이터 구조 */
+export interface OpenInterest {
+  timestamp: number;    // Unix ms
+  openInterest: number; // 미결제약정 (코인 기준)
+}
+
+/**
+ * 바이비트에서 미결제약정(OI) 히스토리를 가져온다
+ * - intervalTime: '15min' | '1h' | '4h' | '1d'
+ */
+export async function fetchOpenInterest(
+  symbol: string,
+  intervalTime: string,
+  limit: number = 200
+): Promise<OpenInterest[]> {
+  return withRetry(async () => {
+    const url = `${BYBIT_API_BASE}/v5/market/open-interest`;
+    const res = await axios.get(url, {
+      params: { category: 'linear', symbol, intervalTime, limit },
+    });
+
+    if (res.data.retCode !== 0) {
+      throw new Error(`[Fetcher] OI 조회 실패 (${symbol}): ${res.data.retMsg}`);
+    }
+
+    // 바이비트는 최신이 index 0인 배열로 반환
+    return (res.data.result.list as Array<{ openInterest: string; timestamp: string }>)
+      .map(item => ({
+        timestamp: Number(item.timestamp),
+        openInterest: Number(item.openInterest),
+      }))
+      .reverse(); // 오름차순으로 변환
+  });
+}
+
+/** 바이비트 펀딩비율 히스토리 데이터 구조 */
+export interface FundingRate {
+  timestamp: number;   // 펀딩 지급 시각 (Unix ms)
+  fundingRate: number; // 펀딩비율 (0.0001 = 0.01%)
+}
+
+/**
+ * 바이비트에서 펀딩비율 히스토리를 가져온다
+ * - 8시간마다 지급되므로 하루 3번 기록됨
+ */
+export async function fetchFundingHistory(
+  symbol: string,
+  limit: number = 200
+): Promise<FundingRate[]> {
+  return withRetry(async () => {
+    const url = `${BYBIT_API_BASE}/v5/market/funding/history`;
+    const res = await axios.get(url, {
+      params: { category: 'linear', symbol, limit },
+    });
+
+    if (res.data.retCode !== 0) {
+      throw new Error(`[Fetcher] 펀딩비율 조회 실패 (${symbol}): ${res.data.retMsg}`);
+    }
+
+    return (res.data.result.list as Array<{ fundingRate: string; fundingRateTimestamp: string }>)
+      .map(item => ({
+        timestamp: Number(item.fundingRateTimestamp),
+        fundingRate: Number(item.fundingRate),
+      }))
+      .reverse(); // 오름차순으로 변환
+  });
+}
+
 /** 바이비트 선물 티커(현재가/거래량 등)를 가져온다 */
 export async function fetchTicker(symbol: string): Promise<Ticker> {
   return withRetry(async () => {

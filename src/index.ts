@@ -4,6 +4,9 @@ import { sendMessage } from './alerts/telegram';
 import { runScanAll } from './alerts/scanner';
 import { checkCandleCloseAll } from './alerts/candle';
 import { sendDailySummary } from './alerts/summary';
+import { collectCandles } from './collector/candleCollector';
+import { collectOI, collectFunding } from './collector/oiCollector';
+import { collectTrades } from './collector/tradeCollector';
 
 const MS_PER_MIN = 60 * 1000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MIN;
@@ -30,6 +33,36 @@ function msUntilNextKST(hourKST: number, minuteKST: number = 0): number {
   }
 
   return target.getTime() - now.getTime();
+}
+
+/**
+ * 캔들 마감 시점마다 해당 인터벌의 캔들 + OI 데이터를 수집한다
+ * - intervalMin: 15 | 60 | 240 | 1440
+ * - bybitInterval: 바이비트 API 형식 ('15' | '60' | '240' | 'D')
+ */
+function scheduleCollect(intervalMin: number, bybitInterval: string): void {
+  const label = bybitInterval === 'D' ? '1D' : `${intervalMin}분`;
+  const intervalMs = intervalMin * MS_PER_MIN;
+  const waitMs = msUntilNextCandle(intervalMin);
+  console.log(`[Collector] ${label} 수집 — 다음 마감까지 ${Math.round(waitMs / 1000)}초 대기`);
+
+  const collect = async () => {
+    for (const symbol of config.collector.symbols) {
+      await collectCandles(symbol, bybitInterval);
+      await collectOI(symbol, bybitInterval);
+    }
+    // 1D 마감 시점에만 펀딩비율 수집 (하루 1회로 충분)
+    if (bybitInterval === 'D') {
+      for (const symbol of config.collector.symbols) {
+        await collectFunding(symbol);
+      }
+    }
+  };
+
+  setTimeout(() => {
+    collect();
+    setInterval(collect, intervalMs);
+  }, waitMs);
 }
 
 /** 캔들 마감 시점에 맞춰 스캐너(거래량 급등 + 돌파 시도) 루프를 시작한다 */
@@ -76,6 +109,15 @@ async function main(): Promise<void> {
 
   // BTC 거래량 급등 스캔 (5분 캔들 마감마다)
   scheduleScan(5);
+
+  // 캔들 + OI 실시간 수집 (각 인터벌 마감마다)
+  scheduleCollect(15,   '15');  // 15분봉
+  scheduleCollect(60,   '60');  // 1시간봉
+  scheduleCollect(240,  '240'); // 4시간봉
+  scheduleCollect(1440, 'D');   // 일봉 + 펀딩비율
+
+  // 내 거래 데이터 수집 (하루 1회, 새벽 1시 KST)
+  scheduleDailyAt(1, 0, () => collectTrades(), '거래 데이터 수집');
 
   // 캔들 마감 알림 (4H)
   scheduleCandleCheck(240);

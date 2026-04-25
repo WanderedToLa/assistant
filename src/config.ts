@@ -18,9 +18,9 @@ export const config = {
     chatId: requireEnv('TELEGRAM_CHAT_ID'),
   },
   bybit: {
-    // 바이비트 API (Phase 2 이후 사용)
-    apiKey: process.env.BYBIT_API_KEY ?? '',
-    apiSecret: process.env.BYBIT_API_SECRET ?? '',
+    apiKey: requireEnv('BYBIT_API_KEY'),
+    // RSA 방식: Secret Key 없음 — 프라이빗 키 파일 경로로 서명
+    privateKeyPath: requireEnv('BYBIT_PRIVATE_KEY_PATH'),
   },
   anthropic: {
     apiKey: requireEnv('ANTHROPIC_API_KEY'),
@@ -44,5 +44,15 @@ export const config = {
     interval15m: 15 * 60 * 1000,
     // 30분 캔들 체크 주기 (ms)
     interval30m: 30 * 60 * 1000,
+  },
+  collector: {
+    // 데이터 수집 대상 심볼
+    symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
+    // 수집할 캔들 인터벌 (바이비트 API 형식: '15'=15분, '60'=1시간, '240'=4시간, 'D'=1일)
+    intervals: ['15', '60', '240', 'D'] as string[],
+    // 한 번에 가져올 캔들 수 (바이비트 최대 200개)
+    fetchLimit: 200,
+    // JSON 저장 루트 경로
+    dataDir: 'data',
   },
 } as const;
