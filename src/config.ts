@@ -47,7 +47,7 @@ export const config = {
   },
   collector: {
     // 데이터 수집 대상 심볼
-    symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
+    symbols: ['BTCUSDT'],
     // 수집할 캔들 인터벌 (바이비트 API 형식: '15'=15분, '60'=1시간, '240'=4시간, 'D'=1일)
     intervals: ['15', '60', '240', 'D'] as string[],
     // 한 번에 가져올 캔들 수 (바이비트 최대 200개)

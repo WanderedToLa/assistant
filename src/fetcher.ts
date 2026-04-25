@@ -32,13 +32,15 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries: number = 3): Promi
 
 /** 바이비트 캔들(Kline) 데이터 구조 */
 export interface Candle {
-  openTime: number; // 캔들 시작 시각 (Unix ms)
+  openTime: number;        // 캔들 시작 시각 (Unix ms)
   open: number;
   high: number;
   low: number;
   close: number;
-  volume: number;   // 코인 기준 거래량
-  turnover: number; // USDT 기준 거래대금
+  volume: number;          // 코인 기준 거래량
+  turnover: number;        // USDT 기준 거래대금
+  fundingRate?: number;    // 4H BTCUSDT만: 캔들 마감 시점 예측 펀딩비율
+  openInterest?: number;   // 1D BTCUSDT만: 캔들 마감 시점 미결제약정 (코인 기준)
 }
 
 /** 바이비트 응답 배열을 Candle 객체로 변환한다 */

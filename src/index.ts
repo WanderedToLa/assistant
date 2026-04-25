@@ -5,11 +5,11 @@ import { runScanAll } from './alerts/scanner';
 import { checkCandleCloseAll } from './alerts/candle';
 import { sendDailySummary } from './alerts/summary';
 import { collectCandles } from './collector/candleCollector';
-import { collectOI, collectFunding } from './collector/oiCollector';
 import { collectTrades } from './collector/tradeCollector';
 
 const MS_PER_MIN = 60 * 1000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MIN;
+
 
 /** 다음 캔들 마감까지 남은 시간(ms)을 계산한다 */
 function msUntilNextCandle(intervalMin: number): number {
@@ -19,20 +19,16 @@ function msUntilNextCandle(intervalMin: number): number {
 
 /**
  * 다음 KST 지정 시각(시:분)까지 남은 시간(ms)을 계산한다
- * KST = UTC+9 이므로 UTC 기준으로 변환해서 계산
+ * UTC 변환 없이 KST ms 기준으로 직접 계산 — 음수 시각 롤백 문제 방지
  */
 function msUntilNextKST(hourKST: number, minuteKST: number = 0): number {
-  const now = new Date();
-  // 오늘 KST 목표 시각을 UTC Date로 표현
-  const target = new Date(now);
-  target.setUTCHours(hourKST - 9, minuteKST, 0, 0); // KST-9 = UTC
-
-  // 이미 지났으면 다음 날로
-  if (target.getTime() <= now.getTime()) {
-    target.setUTCDate(target.getUTCDate() + 1);
-  }
-
-  return target.getTime() - now.getTime();
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const nowKST = Date.now() + KST_OFFSET_MS;
+  const todayMidnightKST = Math.floor(nowKST / MS_PER_DAY) * MS_PER_DAY;
+  const targetKST = todayMidnightKST + (hourKST * 60 + minuteKST) * 60 * 1000;
+  let diff = targetKST - nowKST;
+  if (diff <= 0) diff += MS_PER_DAY;
+  return diff;
 }
 
 /**
@@ -49,13 +45,6 @@ function scheduleCollect(intervalMin: number, bybitInterval: string): void {
   const collect = async () => {
     for (const symbol of config.collector.symbols) {
       await collectCandles(symbol, bybitInterval);
-      await collectOI(symbol, bybitInterval);
-    }
-    // 1D 마감 시점에만 펀딩비율 수집 (하루 1회로 충분)
-    if (bybitInterval === 'D') {
-      for (const symbol of config.collector.symbols) {
-        await collectFunding(symbol);
-      }
     }
   };
 

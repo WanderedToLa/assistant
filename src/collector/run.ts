@@ -1,6 +1,5 @@
 import '../config'; // 환경변수 초기화
 import { collectAllCandles } from './candleCollector';
-import { collectAllOI } from './oiCollector';
 import { collectTrades } from './tradeCollector';
 
 /**
@@ -13,9 +12,6 @@ async function run(): Promise<void> {
 
   console.log('--- 캔들 수집 (15m / 1H / 4H / 1D) ---');
   await collectAllCandles();
-
-  console.log('\n--- OI + 펀딩비율 수집 ---');
-  await collectAllOI();
 
   console.log('\n--- 거래 데이터 수집 ---');
   await collectTrades();
